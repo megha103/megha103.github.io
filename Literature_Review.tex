@@ -1,0 +1,114 @@
+
+% ===========================================================================
+% Title:
+% ---------------------------------------------------------------------------
+% to create Type I fonts type "dvips -P cmz -t letter <filename>"
+% ===========================================================================
+\documentclass[11pt]{article}       %--- LATEX 2e base
+\usepackage{latexsym}               %--- LATEX 2e base
+%---------------- Wide format -----------------------------------------------
+\textwidth=6in \textheight=9in \oddsidemargin=0.25in
+\evensidemargin=0.25in \topmargin=-0.5in
+%--------------- Def., Theorem, Proof, etc. ---------------------------------
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{property}{Property}
+\newtheorem{observation}{Observation}
+\newtheorem{fact}{Fact}
+\newenvironment{proof}           {\noindent{\bf Proof.} }%
+                                 {\null\hfill$\Box$\par\medskip}
+%--------------- Algorithm --------------------------------------------------
+\newtheorem{algX}{Algorithm}
+\newenvironment{algorithm}       {\begin{algX}\begin{em}}%
+                                 {\par\noindent --- End of Algorithm ---
+                                 \end{em}\end{algX}}
+\newcommand{\step}[2]            {\begin{list}{}
+                                  {  \setlength{\topsep}{0cm}
+                                     \setlength{\partopsep}{0cm}
+                                     \setlength{\leftmargin}{0.8cm}
+                                     \setlength{\labelwidth}{0.7cm}
+                                     \setlength{\labelsep}{0.1cm}    }
+                                  \item[#1]#2    \end{list}}
+                                 % usage: \begin{algorithm} \label{xyz}
+                                 %        ... \step{(1)}{...} ...
+                                 %        \end{algorithm}
+%--------------- Figures ----------------------------------------------------
+\usepackage{graphicx}
+
+\newcommand{\includeFig}[3]      {\begin{figure}[htb] \begin{center}
+                                 \includegraphics
+                                 [width=4in,keepaspectratio] %comment this line to disable scaling
+                                 {#2}\caption{\label{#1}#3} \end{center} \end{figure}}
+                                 % usage: \includeFig{label}{file}{caption}
+
+
+% ===========================================================================
+\begin{document}
+% ===========================================================================
+
+% ############################################################################
+% Title
+% ############################################################################
+
+\title{LITERATURE REVIEW: Histogram Sort with Sampling}
+
+
+% ############################################################################
+% Author(s) (no blank lines !)
+\author{
+% ############################################################################
+Megha Agarwal\\
+School of Computer Science\\
+Carleton University\\
+Ottawa, Canada K1S 5B6\\
+{\em meghaagarwal@cmail.carleton.ca}
+% ############################################################################
+} % end-authors
+% ############################################################################
+
+\maketitle
+
+
+
+% ############################################################################
+\section{Introduction} \label{intro}
+% ############################################################################
+
+Sorting is an important task in many computing applications owing to the ease of accessing data as per application requirement. With the expansion of parallelization to almost all domains today, it is crucial that our sorting algorithms can be implemented in parallel as well. The idea behind a parallel sorting algorithm is to distribute \emph N keys across \emph p processors in a manner that they are sorted on the global level. A subset of this parallel sorting is the partition based parallel sorting where the system determines a set of splitter intervals to achieve a global or local balanced splitting and then redistribute the keys. So, this project throws some light on one such state-of-the-art parallel sorting algorithm which integrates histogramming and sampling to result in a low communication and low computation algorithm. Here, sampling aids the partition to be done on a representative subset of input keys and histogramming facilitates the iterative processing and evaluation for each given partition.
+
+
+% ############################################################################
+\section{Literature Review} \label{litrev}
+% ############################################################################
+\par
+The chief goal of a parallel sorting algorithm is to distribute all input keys over all available processors such that for each processor k there are no keys on k that are greater than any key on processor \emph {k+1}. We can achieve an exact split when all processors have the same number of keys, whereas an approximate split can be achieved if for any $\epsilon$, there are $ \frac {N(1+\epsilon)} {p} $  keys per processor\cite{paper1}. This induces that the primary goal for any parallel sorting algorithm is to find a global partition. In these partition-based algorithms, like quick sort, it is highly beneficial to partition the data before redistributing it, in order to lower the communication cost. Two very efficient parallel sorting algorithms, Parallel Quick Sorting Algorithm (PQSA) and Merging Subarrays from Quick Sorting Algorithm (MSQSA), are proposed by Lingxiao Zeng in \cite{two_massive} but they perform exceptionally with a complexity of  $\frac {N}{p}O\left( log \frac{N}{p}\right ) $ with shared memory. However, the focus of this project is over distributed memory parallel computers. \par
+The most practical comparison-based sorting algorithm for distributed memory computers is realized to be sample sort \cite{paper1s10}, which partitions the input data into multiple pieces to be represented by a subset of keys. Sampling on a data can be either randomized or regular \cite{random_sampling} , \cite{regular_sampling}, where random sampling shows better results in theory \cite{paper1}, although it provides poor scalability owing to the large sample sizes required to attain load balancing, but, it is regular sampling that shows better performance practically by resulting in an almost perfect global balancing \cite{sampling_result}. An alternative of deterministic sampling could also have been used \cite{dehne}, but they perform exceptionally in the presence of GPUs. As long as $ \theta \left(p  log \frac{N}{\epsilon^2}\right) $  keys are selected for a sample, a global load balance can be achieved. It is evident from \cite{paper1} that it is enough to collect a number of samples that scales logarithmically with 1/$\epsilon$ and almost linearly with \emph p. The sample sort algorithm samples \emph s keys from each processor resulting in a total of \emph{M=ps} keys at the central processor. The steps taken to perform sampling are:
+\begin{enumerate}
+\item \textbf{Sampling Phase}: Each processor samples s keys and communicates it to the central processor, where s is called the oversampling ratio. 
+\item \textbf{Splitter determination}: The central processor then sorts these samples and identifies \emph{p-1} splitters producing p partitions. The interval between each of these splitters is assigned to one processor by broadcasting the splitters to all processors.
+\item \textbf{Exchanging data}: Each processors partitions data according to the received splitters and exchanges them with their destination processors, requiring an all-to-all communication. When all processors have received their allocated keys, they can then use any shared memory sorting algorithm \cite{two_massive} to sort the local subset.
+\end{enumerate} \par
+An advancement on the sample sort is probabilistic partitioning, where rather than picking splitters after just one round of sampling, a vector of splitter candidates is iteratively refined until the satisfactory load balancing is achieved \cite{paper2}. Further, the processing is done on a sample of keys to pick initial guesses and then continue with our histogramming on the sample. AMS-sort with one round of histogramming provides a locally balanced partition with a sample of $ O\left(p \left(log p + \frac {1}{\epsilon}\right)\right) $ \cite{axtmann} and when this is expanded to multiple rounds of histogramming, provides a globally balanced partition, specifically O(p) over $ O\left( log \left( log \frac {p}{\epsilon}\right)\right) $ suffices \cite{paper1}. Hyksort \cite{hyksort} derived from the quicksort for hypercube, combines partitioning the data for each processor around a randomly chosen pivot, along with histogramming, such that we are now looking k pivots that partition the data into k+1 groups. The scanning algorithm used for AMS-sort \cite{axtmann} gives better partitioning than HSS \cite{paper1} over one round of histogramming, but HSS shows better results than AMS-sort with multiple rounds of histogramming.  \par
+For histogram sort, there are numerous ways to create a histogram \cite{versatile} as demanded by the application. The fundamental process of histogram sort [cite from 1 histogram sort] is to repeatedly refine a partition by collecting histograms of the total number of input keys present in each interval induced by the most recent set of splitters. The distributed histogram sort \cite{paper2} comprises of 4 basic steps:
+\begin {enumerate}
+\item \textbf{Local Sort}: Each processor sorts is local data using any shared memory sorting algorithm which has an expected time complexity of \emph{O(n log n)}.
+\item \textbf{Splitting}: Generalizing the distributed selection algorithms, like median of partition strategy with weighted medians, to distributed multi-selection, the local array is partitioned into P subsequences \cite{paper2}, \cite{paper2s30}. Rather than determining one pivot, multiple pivots are selected in each iteration, for each active range. When a pivot matching a specific rank is found, that range is discarded and pivots for all other ranges is examined from each of the two subranges. Here, each splitter is represented as a tuple containing the splitter upper and lower bounds and the splitter value. So, any splitter \emph {$S_{i}$} is successfully determined if the lower bound \emph {$L_{i}$} and upper bound \emph {$U_{i}$} satisfy the condition $ L_{i}(S_{i}) < K_{i+1} \leq U_{i}(S_{i}) $, where \emph K denotes the rank of splitter and i $\epsilon$ \{1,2,…,P\}. 
+It is here that histogramming is performed, as mentioned in \cite{paper2}. All splitters are initialized with a minimum and maximum for the global range. Then, the splitters are iteratively determined by converging the minimum and maximum for each local histogram which is combined to form a global histogram. The complexity for this is $ O(p(log p) + p(log  n_i))$ per iteration. 
+\item \textbf{Data exchange}: All processors exchange their locally sorted sequences with all other processors after determining all splitters. A permutation matrix is created where that helps identify the send displacements for each processor \emph i \cite{paper2}. 
+\item\textbf{ Local Merge}: Finally, each processor locally merges the received sorted sequence. There are two options possible here, either to sort the full array with a complexity of $ O\left ( \frac {N}{p} log \frac {N}{p}\right )$ using a fast shared memory algorithm or merge it out of place in $O\left ( \frac {N}{p} log p\right) $ time using a binary merge algorithm \cite{paper2}. 
+\end{enumerate}
+\par The analysis for the algorithm in \cite{paper2} is done using Charm++ with MPI-3 and OpenMP, and DASH. It was evident that histogramming proves to be the bottleneck in the case where number of processors was increased. Between Charm++ and DASH, it was also seen that the algorithm in \cite{paper1}, which uses Charm++ demonstrated volatility, and resulted in performance degradation. There was also an issue observed with the scalability of the all to all communication \cite{paper2}, which may stem from MPI being able to support small data transfer in all to all messages and not such big chunks as performed for this algorithm. The cost for local sorting is calculated to be $ O\left( \frac {N}{p} log \frac{N}{p}\right) $, broadcasting the splitters takes O(p) time and the final data movement needs all data to be sent to all processors incurring a cost of O(N/p). A global histogram is computed by reducing all local histograms with O(S) communication and computation. So, it is safe to say that communication and computation cost of histogramming are proportional to the sample size \cite{paper1}.HSS determines all splitters in $ O\left (log\frac {(log p)}{\epsilon}\right)$ which is way better than that of HykSort. It can be expected for a single-staged AMS-sort to take approximately 3 times the time for splitting phase as compared to HSS\cite{paper1}. When examining the algorithm over various input distributions, it was also observed that the algorithm was not much affected by it\cite{paper1}.
+
+
+
+% ############################################################################
+% Bibliography
+% ############################################################################
+\bibliographystyle{plain}
+\bibliography{citationNew}   
+
+% ============================================================================
+\end{document}
+% ============================================================================
